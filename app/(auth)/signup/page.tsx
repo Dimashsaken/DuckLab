@@ -92,11 +92,11 @@ export default function SignupPage() {
               </p>
               <Input
                 type="text"
-                placeholder="Enter 6-digit code"
+                placeholder="Enter 8-digit code"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 required
-                maxLength={6}
+                maxLength={8}
                 disabled={loading}
                 autoFocus
               />
