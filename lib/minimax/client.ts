@@ -101,9 +101,20 @@ export async function generateJSON<T>(
 
   const raw = await generateText({ ...options, messages })
   const cleaned = raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim()
 
-  return parser(JSON.parse(cleaned))
+  try {
+    return parser(JSON.parse(cleaned))
+  } catch (e) {
+    const jsonMatch = cleaned.match(/[\[{][\s\S]*[\]}]/)
+    if (jsonMatch) {
+      return parser(JSON.parse(jsonMatch[0]))
+    }
+    throw new SyntaxError(
+      `Failed to parse JSON from model response: ${cleaned.slice(0, 200)}`
+    )
+  }
 }
