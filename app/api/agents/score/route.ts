@@ -8,7 +8,7 @@ import { updateTeachSession } from "@/lib/supabase/queries/teach-sessions"
 import { calculateSM2 } from "@/lib/utils/spaced-repetition"
 import { SCORE_THRESHOLDS, type MasteryLevel } from "@/lib/constants"
 
-export const maxDuration = 30
+export const maxDuration = 60
 
 export async function POST(request: Request) {
   try {
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const { sessionId, conceptId, conceptTitle, conceptDescription, conversation } =
       await request.json()
 
-    const scorecard = await scoreTeachBack(
+    const enrichedScorecard = await scoreTeachBack(
       conceptTitle,
       conceptDescription,
       conversation
@@ -30,19 +30,19 @@ export async function POST(request: Request) {
 
     const previousScore = await getLatestScore(conceptId)
     const delta = previousScore
-      ? scorecard.overall_score - previousScore.overall_score
+      ? enrichedScorecard.overall_score - previousScore.overall_score
       : 0
 
     const score = await insertScore({
       session_id: sessionId,
       concept_id: conceptId,
-      accuracy: scorecard.accuracy,
-      simplicity: scorecard.simplicity,
-      structure: scorecard.structure,
-      transfer: scorecard.transfer,
-      metacognition: scorecard.metacognition,
-      weakest_dimension: scorecard.weakest_dimension,
-      misconception_label: scorecard.misconception_label,
+      accuracy: enrichedScorecard.accuracy,
+      simplicity: enrichedScorecard.simplicity,
+      structure: enrichedScorecard.structure,
+      transfer: enrichedScorecard.transfer,
+      metacognition: enrichedScorecard.metacognition,
+      weakest_dimension: enrichedScorecard.weakest_dimension,
+      misconception_label: enrichedScorecard.misconception_label,
       improvement_delta: delta,
     })
 
@@ -53,9 +53,9 @@ export async function POST(request: Request) {
     })
 
     let masteryLevel: MasteryLevel = "weak"
-    if (scorecard.overall_score >= SCORE_THRESHOLDS.mastered) {
+    if (enrichedScorecard.overall_score >= SCORE_THRESHOLDS.mastered) {
       masteryLevel = "mastered"
-    } else if (scorecard.overall_score >= SCORE_THRESHOLDS.learning) {
+    } else if (enrichedScorecard.overall_score >= SCORE_THRESHOLDS.learning) {
       masteryLevel = "learning"
     }
 
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       .single()
 
     const sm2 = calculateSM2({
-      quality: scorecard.overall_score,
+      quality: enrichedScorecard.overall_score,
       repetitions: concept?.repetitions ?? 0,
       easeFactor: concept?.ease_factor ?? 2.5,
       intervalDays: concept?.interval_days ?? 0,
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
     await updateConceptMastery(conceptId, {
       mastery_level: masteryLevel,
-      mastery_score: scorecard.overall_score,
+      mastery_score: enrichedScorecard.overall_score,
       last_reviewed_at: new Date().toISOString(),
       next_review_at: sm2.nextReviewDate.toISOString(),
       ease_factor: sm2.easeFactor,
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({
-      ...scorecard,
+      ...enrichedScorecard,
       improvement_delta: delta,
       score_id: score.id,
     })

@@ -11,8 +11,10 @@ import { VoiceChat } from "@/components/teach-back/voice-chat"
 import { Scorecard } from "@/components/teach-back/scorecard"
 import { RepairLesson } from "@/components/teach-back/repair-lesson"
 import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, RotateCcw, CheckCircle, Loader2, Mic, MessageSquare } from "lucide-react"
 import type { RepairLesson as RepairLessonType } from "@/lib/schemas/repair"
+import type { Claim, TurnFeedback } from "@/lib/schemas/scorecard"
 
 type TeachMode = "text" | "voice"
 
@@ -28,6 +30,9 @@ interface ScorecardData {
   strength_summary: string
   gap_summary: string
   improvement_delta?: number
+  claims?: Claim[]
+  turn_feedback?: TurnFeedback[]
+  actionable_next_steps?: string[]
 }
 
 export default function TeachPage() {
@@ -119,14 +124,19 @@ export default function TeachPage() {
     onFinished: handleFinished,
   })
 
+  const hasUserMessages = textChat.messages.some((m) => m.role === "user")
   const canSwitchMode =
-    textChat.messages.length === 0 &&
+    !hasUserMessages &&
     voiceChat.status === "idle" &&
     !scorecard
 
   async function handleRepair() {
     if (!scorecard || !concept) return
     setLoadingRepair(true)
+
+    const incorrectClaims = (scorecard.claims ?? [])
+      .filter((c) => c.verdict === "incorrect" || c.verdict === "partially_correct")
+      .map((c) => ({ claim: c.claim, correction: c.correction }))
 
     try {
       const res = await fetch("/api/agents/repair", {
@@ -137,6 +147,7 @@ export default function TeachPage() {
           weakestDimension: scorecard.weakest_dimension,
           misconceptionLabel: scorecard.misconception_label,
           gapSummary: scorecard.gap_summary,
+          incorrectClaims,
         }),
       })
 
@@ -251,11 +262,8 @@ export default function TeachPage() {
             />
           )}
           {scoring && (
-            <div className="flex items-center justify-center gap-2 border-t border-border p-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm text-muted-foreground">
-                The duck is thinking about what you taught...
-              </span>
+            <div className="border-t border-border p-4">
+              <ScoringProgress />
             </div>
           )}
         </div>
@@ -301,6 +309,61 @@ export default function TeachPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const SCORING_PHASES = [
+  { label: "Extracting your claims…", target: 35, duration: 5000 },
+  { label: "Verifying accuracy…", target: 60, duration: 6000 },
+  { label: "Scoring each dimension…", target: 85, duration: 5000 },
+  { label: "Generating feedback…", target: 95, duration: 4000 },
+]
+
+function ScoringProgress() {
+  const [progress, setProgress] = useState(0)
+  const [phase, setPhase] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    let currentPhase = 0
+    let currentProgress = 0
+
+    function runPhase() {
+      if (cancelled || currentPhase >= SCORING_PHASES.length) return
+      const { target, duration } = SCORING_PHASES[currentPhase]
+      const increment = (target - currentProgress) / (duration / 100)
+
+      const interval = setInterval(() => {
+        if (cancelled) { clearInterval(interval); return }
+        currentProgress = Math.min(currentProgress + increment, target)
+        setProgress(Math.round(currentProgress))
+
+        if (currentProgress >= target) {
+          clearInterval(interval)
+          currentPhase++
+          setPhase(currentPhase)
+          runPhase()
+        }
+      }, 100)
+    }
+
+    runPhase()
+    return () => { cancelled = true }
+  }, [])
+
+  const label =
+    phase < SCORING_PHASES.length
+      ? SCORING_PHASES[phase].label
+      : "Almost there…"
+
+  return (
+    <div className="space-y-2">
+      <Progress value={progress} className="h-2.5" />
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{label}</span>
+        <span>{progress}%</span>
+      </div>
     </div>
   )
 }

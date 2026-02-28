@@ -42,19 +42,6 @@ export function DuckChat({
   return (
     <div className="flex h-full flex-col">
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
-        {messages.length === 0 && (
-          <div className="flex items-start gap-3">
-            <DuckAvatar />
-            <div className="rounded-lg bg-muted/50 p-3">
-              <p className="text-sm">
-                Hi there! I&apos;m your rubber duck. I don&apos;t know anything
-                about this topic yet. Can you explain it to me like I&apos;m 10
-                years old?
-              </p>
-            </div>
-          </div>
-        )}
-
         {messages.map((msg, i) => (
           <div
             key={i}
@@ -107,7 +94,7 @@ export function DuckChat({
             </Button>
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Turn {Math.min(userMessageCount + 1, 3)} of 3 — Shift+Enter for new
+            Turn {Math.min(userMessageCount + 1, 4)} of 4 — Shift+Enter for new
             line
           </p>
         </form>

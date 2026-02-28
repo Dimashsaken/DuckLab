@@ -13,11 +13,12 @@ Scoring guide (per dimension):
 - 2: Mostly correct with minor issues
 - 3: Clear, accurate, well-explained
 
-Also identify:
+Also provide:
 - weakest_dimension: The dimension with the lowest score
 - misconception_label: One of: jargon-without-understanding, causal-confusion, overgeneralisation, undergeneralisation, missing-prerequisite, surface-level-memorisation, false-analogy, conflation, none-detected
-- strength_summary: 1 sentence about what they did well
-- gap_summary: 1 sentence about their biggest gap
+- strength_summary: 2-3 sentences about what they did well, referencing specific things they said
+- gap_summary: 2-3 sentences about their biggest gaps, referencing specific claims that were wrong or missing
+- actionable_next_steps: Exactly 3 specific, concrete actions the student should take to improve. Not generic advice — reference the actual concept and what they got wrong.
 
 Output JSON:
 {
@@ -30,5 +31,6 @@ Output JSON:
   "weakest_dimension": "string",
   "misconception_label": "string or null",
   "strength_summary": "string",
-  "gap_summary": "string"
+  "gap_summary": "string",
+  "actionable_next_steps": ["string", "string", "string"]
 }`
