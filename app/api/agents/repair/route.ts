@@ -12,14 +12,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { conceptTitle, weakestDimension, misconceptionLabel, gapSummary } =
-      await request.json()
+    const {
+      conceptTitle,
+      weakestDimension,
+      misconceptionLabel,
+      gapSummary,
+      incorrectClaims,
+    } = await request.json()
 
     const lesson = await generateRepairLesson(
       conceptTitle,
       weakestDimension,
       misconceptionLabel,
-      gapSummary
+      gapSummary,
+      incorrectClaims
     )
 
     return NextResponse.json(lesson)

@@ -3,6 +3,9 @@ import type { MiniMaxRequestOptions, MiniMaxResponse } from "./types"
 const MINIMAX_API_URL =
   "https://api.minimax.io/v1/text/chatcompletion_v2"
 const MINIMAX_MODEL = "MiniMax-M2.5"
+const MINIMAX_FAST_MODEL = "MiniMax-Text-01"
+
+export { MINIMAX_MODEL, MINIMAX_FAST_MODEL }
 
 interface MiniMaxResult {
   content: string
@@ -56,7 +59,7 @@ export async function streamText(
       Authorization: `Bearer ${process.env.MINIMAX_API_KEY}`,
     },
     body: JSON.stringify({
-      model: MINIMAX_MODEL,
+      model: options.model ?? MINIMAX_MODEL,
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 4096,

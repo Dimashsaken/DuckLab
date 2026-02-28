@@ -13,6 +13,7 @@ import { RepairLesson } from "@/components/teach-back/repair-lesson"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, RotateCcw, CheckCircle, Loader2, Mic, MessageSquare } from "lucide-react"
 import type { RepairLesson as RepairLessonType } from "@/lib/schemas/repair"
+import type { Claim, TurnFeedback } from "@/lib/schemas/scorecard"
 
 type TeachMode = "text" | "voice"
 
@@ -28,6 +29,9 @@ interface ScorecardData {
   strength_summary: string
   gap_summary: string
   improvement_delta?: number
+  claims?: Claim[]
+  turn_feedback?: TurnFeedback[]
+  actionable_next_steps?: string[]
 }
 
 export default function TeachPage() {
@@ -128,6 +132,10 @@ export default function TeachPage() {
     if (!scorecard || !concept) return
     setLoadingRepair(true)
 
+    const incorrectClaims = (scorecard.claims ?? [])
+      .filter((c) => c.verdict === "incorrect" || c.verdict === "partially_correct")
+      .map((c) => ({ claim: c.claim, correction: c.correction }))
+
     try {
       const res = await fetch("/api/agents/repair", {
         method: "POST",
@@ -137,6 +145,7 @@ export default function TeachPage() {
           weakestDimension: scorecard.weakest_dimension,
           misconceptionLabel: scorecard.misconception_label,
           gapSummary: scorecard.gap_summary,
+          incorrectClaims,
         }),
       })
 
