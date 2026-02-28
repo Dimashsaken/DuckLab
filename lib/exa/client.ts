@@ -19,6 +19,16 @@ export async function searchForResources(query: string, numResults = 10) {
   })
 }
 
+export async function searchForDeepContent(query: string, numResults = 5) {
+  const exa = getExaClient()
+  return exa.searchAndContents(query, {
+    text: { maxCharacters: 1500 },
+    highlights: { numSentences: 5, highlightsPerUrl: 3 },
+    numResults,
+    type: "auto",
+  })
+}
+
 export async function searchRecentNews(query: string, numResults = 5) {
   const exa = getExaClient()
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)

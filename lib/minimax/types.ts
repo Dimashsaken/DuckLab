@@ -8,6 +8,7 @@ export interface MiniMaxRequestOptions {
   temperature?: number
   maxTokens?: number
   stream?: boolean
+  model?: string
 }
 
 export interface MiniMaxChoice {
