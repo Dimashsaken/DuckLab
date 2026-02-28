@@ -1,4 +1,4 @@
-import { generateJSON } from "@/lib/minimax/client"
+import { generateJSON, MINIMAX_FAST_MODEL } from "@/lib/minimax/client"
 import { CLAIM_EXTRACTOR_PROMPT } from "@/lib/prompts/claim-extractor"
 import {
   ClaimAnalysisSchema,
@@ -28,6 +28,7 @@ export async function extractAndVerifyClaims(
 
   return generateJSON(
     {
+      model: MINIMAX_FAST_MODEL,
       messages: [
         { role: "system", content: CLAIM_EXTRACTOR_PROMPT },
         {

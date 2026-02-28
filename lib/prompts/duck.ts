@@ -14,4 +14,6 @@ Conversation flow (4 turns total):
 
 CRITICAL: On turn 4 (the final turn), you MUST include [READY_TO_SCORE] at the very end of your message. This signals the system to score the teach-back session.`
 
-export const DUCK_GREETING = "Hey there! I'm your rubber duck. I don't know anything about this topic yet — can you explain it to me like I'm 10 years old?"
+export function getDuckGreeting(conceptTitle: string): string {
+  return `Hey there! I'm your rubber duck. So, what exactly is ${conceptTitle} and why does it matter? Explain it to me like I'm 10 years old!`
+}

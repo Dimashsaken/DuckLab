@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
-import { DUCK_GREETING } from "@/lib/prompts/duck"
+import { useState, useCallback, useRef, useMemo } from "react"
+import { getDuckGreeting } from "@/lib/prompts/duck"
 
 export interface ChatMessage {
   role: "user" | "assistant"
@@ -14,16 +14,18 @@ interface UseDuckChatOptions {
   onFinished?: (messages: ChatMessage[]) => void
 }
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  { role: "assistant", content: DUCK_GREETING },
-]
-
 export function useDuckChat({
   conceptTitle,
   conceptDescription,
   onFinished,
 }: UseDuckChatOptions) {
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES)
+  const greeting = useMemo(
+    () => getDuckGreeting(conceptTitle),
+    [conceptTitle]
+  )
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: "assistant", content: greeting },
+  ])
   const [isLoading, setIsLoading] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -96,10 +98,10 @@ export function useDuckChat({
 
   const reset = useCallback(() => {
     abortRef.current?.abort()
-    setMessages(INITIAL_MESSAGES)
+    setMessages([{ role: "assistant", content: greeting }])
     setIsLoading(false)
     setIsFinished(false)
-  }, [])
+  }, [greeting])
 
   return { messages, sendMessage, isLoading, isFinished, reset }
 }

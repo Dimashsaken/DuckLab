@@ -11,7 +11,7 @@ export async function getOrCreateDuckAgent(): Promise<string> {
 
   const llm = await client.llm.create({
     general_prompt: getDuckVoicePrompt("{{concept_title}}", "{{concept_description}}"),
-    begin_message: "Hey! I'm your rubber duck. I don't know anything about {{concept_title}} yet. Can you explain it to me like I'm 10 years old?",
+    begin_message: "Hey! I'm your rubber duck. So, what exactly is {{concept_title}} and why does it matter? Explain it to me like I'm 10 years old!",
   })
   cachedLlmId = llm.llm_id
 
