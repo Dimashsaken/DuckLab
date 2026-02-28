@@ -11,7 +11,6 @@ import { VoiceChat } from "@/components/teach-back/voice-chat"
 import { Scorecard } from "@/components/teach-back/scorecard"
 import { RepairLesson } from "@/components/teach-back/repair-lesson"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, RotateCcw, CheckCircle, Loader2, Mic, MessageSquare } from "lucide-react"
 import type { RepairLesson as RepairLessonType } from "@/lib/schemas/repair"
 
@@ -185,12 +184,7 @@ export default function TeachPage() {
   }
 
   if (!concept) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    )
+    return 
   }
 
   return (

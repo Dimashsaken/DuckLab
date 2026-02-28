@@ -133,7 +133,7 @@ export default function TopicPage() {
 
   const handleClosePanel = useCallback(() => setSelectedNode(null), [])
 
-  if (loading) return <GraphSkeleton />
+  // if (loading) return <GraphSkeleton />
 
   return (
     <div className="relative -mx-4 -mt-6 flex h-[calc(100vh-3.5rem)] flex-col">
