@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph"
@@ -8,7 +8,7 @@ import { NodeDetailPanel } from "@/components/graph/node-detail-panel"
 import { GraphSkeleton } from "@/components/shared/loading-skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import type { GraphNode, GraphLink } from "@/components/graph/graph-config"
+import { NODE_STATE_COLORS, type GraphNode, type GraphLink } from "@/components/graph/graph-config"
 
 interface Resource {
   id: string
@@ -20,6 +20,7 @@ interface Resource {
 }
 
 export default function TopicPage() {
+  console.log("[Graph:TopicPage] render")
   const params = useParams<{ topicId: string }>()
   const [topic, setTopic] = useState<{
     id: string
@@ -34,6 +35,7 @@ export default function TopicPage() {
 
   useEffect(() => {
     async function loadGraph() {
+      console.log("[Graph:TopicPage] loadGraph() called, topicId:", params.topicId)
       const supabase = createClient()
 
       const { data: topicData } = await supabase
@@ -53,6 +55,8 @@ export default function TopicPage() {
         .from("concept_edges")
         .select("*")
         .eq("topic_id", params.topicId)
+
+      console.log("[Graph:TopicPage] fetched", concepts?.length, "concepts,", edges?.length, "edges")
 
       if (concepts) {
         setNodes(
@@ -121,8 +125,13 @@ export default function TopicPage() {
     [topic]
   )
 
-  const mastered = nodes.filter((n) => n.mastery === "mastered").length
+  const mastered = useMemo(
+    () => nodes.filter((n) => n.mastery === "mastered").length,
+    [nodes]
+  )
   const progress = nodes.length > 0 ? (mastered / nodes.length) * 100 : 0
+
+  const handleClosePanel = useCallback(() => setSelectedNode(null), [])
 
   if (loading) return <GraphSkeleton />
 
@@ -135,24 +144,28 @@ export default function TopicPage() {
             {mastered}/{nodes.length} mastered
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
-          <Progress value={progress} className="h-2 w-32" />
-          <div className="flex gap-1.5">
+        <div className="flex items-center gap-3">
+          <Progress value={progress} className="h-2 w-28" />
+          <div className="flex gap-2">
             {(
               [
-                ["mastered", "#22c55e"],
-                ["learning", "#eab308"],
-                ["weak", "#ef4444"],
-                ["not_started", "#737373"],
+                ["start_here", "Start"],
+                ["unlocked", "Ready"],
+                ["in_progress", "Learning"],
+                ["completed", "Mastered"],
+                ["locked", "Locked"],
               ] as const
-            ).map(([label, color]) => (
-              <div key={label} className="flex items-center gap-1">
+            ).map(([state, label]) => (
+              <div key={state} className="flex items-center gap-1">
                 <div
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: color }}
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    backgroundColor: NODE_STATE_COLORS[state],
+                    opacity: state === "locked" ? 0.5 : 1,
+                  }}
                 />
-                <span className="text-xs text-muted-foreground capitalize">
-                  {label.replace("_", " ")}
+                <span className="text-[11px] text-muted-foreground">
+                  {label}
                 </span>
               </div>
             ))}
@@ -173,7 +186,7 @@ export default function TopicPage() {
         topicId={params.topicId}
         resources={resources}
         open={!!selectedNode}
-        onClose={() => setSelectedNode(null)}
+        onClose={handleClosePanel}
       />
     </div>
   )
