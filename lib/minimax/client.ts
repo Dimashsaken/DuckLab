@@ -85,6 +85,36 @@ export async function streamText(
   })
 }
 
+function repairTruncatedJSON(text: string): string {
+  let s = text.trimEnd()
+  // Strip trailing comma
+  if (s.endsWith(",")) s = s.slice(0, -1)
+  // Strip incomplete key-value (trailing unfinished string after colon)
+  s = s.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"]*$/, "")
+
+  const opens: string[] = []
+  let inString = false
+  let escape = false
+
+  for (const ch of s) {
+    if (escape) { escape = false; continue }
+    if (ch === "\\") { escape = true; continue }
+    if (ch === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (ch === "{" || ch === "[") opens.push(ch)
+    if (ch === "}" || ch === "]") opens.pop()
+  }
+
+  if (inString) s += '"'
+
+  while (opens.length > 0) {
+    const open = opens.pop()
+    s += open === "{" ? "}" : "]"
+  }
+
+  return s
+}
+
 export async function generateJSON<T>(
   options: MiniMaxRequestOptions,
   parser: (raw: unknown) => T
@@ -106,15 +136,29 @@ export async function generateJSON<T>(
     .replace(/\s*```$/i, "")
     .trim()
 
-  try {
-    return parser(JSON.parse(cleaned))
-  } catch (e) {
-    const jsonMatch = cleaned.match(/[\[{][\s\S]*[\]}]/)
-    if (jsonMatch) {
-      return parser(JSON.parse(jsonMatch[0]))
+  const strategies = [
+    () => JSON.parse(cleaned),
+    () => {
+      const match = cleaned.match(/[\[{][\s\S]*[\]}]/)
+      if (!match) throw new Error("no json block")
+      return JSON.parse(match[0])
+    },
+    () => JSON.parse(repairTruncatedJSON(cleaned)),
+  ]
+
+  let lastError: unknown
+  for (const strategy of strategies) {
+    try {
+      return parser(strategy())
+    } catch (err) {
+      lastError = err
     }
+  }
+
+  if (lastError instanceof SyntaxError) {
     throw new SyntaxError(
-      `Failed to parse JSON from model response: ${cleaned.slice(0, 200)}`
+      `Failed to parse JSON from model response: ${cleaned.slice(0, 300)}`
     )
   }
+  throw lastError
 }
