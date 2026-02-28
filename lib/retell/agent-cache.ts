@@ -20,7 +20,7 @@ export async function getOrCreateDuckAgent(): Promise<string> {
       type: "retell-llm",
       llm_id: llm.llm_id,
     },
-    voice_id: "11labs-Adrian",
+    voice_id: "minimax-Daniel",
     agent_name: "DuckLab Teaching Duck",
   })
   cachedAgentId = agent.agent_id

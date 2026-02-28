@@ -183,21 +183,21 @@ export default function StudyPage() {
     }
   }, [concept, topic, neighbors])
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-2xl space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-full" />
-        <div className="space-y-3">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      </div>
-    )
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="mx-auto max-w-2xl space-y-4">
+  //       <Skeleton className="h-8 w-64" />
+  //       <Skeleton className="h-4 w-full" />
+  //       <div className="space-y-3">
+  //         <Skeleton className="h-24 w-full" />
+  //         <Skeleton className="h-24 w-full" />
+  //         <Skeleton className="h-24 w-full" />
+  //       </div>
+  //     </div>
+  //   )
+  // }
 
-  if (!concept) return <p>Concept not found</p>
+  if (!concept) return
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
