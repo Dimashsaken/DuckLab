@@ -4,7 +4,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { LogOut, Bird } from "lucide-react"
+import { LogOut } from "lucide-react"
+import { DuckIcon } from "@/components/icons/duck-icon"
 
 export function Navbar() {
   const router = useRouter()
@@ -20,7 +21,7 @@ export function Navbar() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          <Bird className="h-5 w-5 text-primary" />
+          <DuckIcon className="h-5 w-5 text-primary" />
           <span>DuckLab</span>
         </Link>
         <Button variant="ghost" size="sm" onClick={handleSignOut}>

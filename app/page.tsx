@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Bird, Brain, Network, MessageCircle } from "lucide-react"
+import { Brain, Network, MessageCircle } from "lucide-react"
+import { DuckIcon } from "@/components/icons/duck-icon"
 
 export default function LandingPage() {
   return (
@@ -8,7 +9,7 @@ export default function LandingPage() {
       <header className="border-b border-border">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
           <div className="flex items-center gap-2 font-semibold">
-            <Bird className="h-5 w-5 text-primary" />
+            <DuckIcon className="h-5 w-5 text-primary" />
             DuckLab
           </div>
           <div className="flex gap-2">
