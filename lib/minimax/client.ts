@@ -4,9 +4,13 @@ const MINIMAX_API_URL =
   "https://api.minimax.io/v1/text/chatcompletion_v2"
 const MINIMAX_MODEL = "MiniMax-M2.5"
 
-export async function generateText(
-  options: MiniMaxRequestOptions
-): Promise<string> {
+interface MiniMaxResult {
+  content: string
+  finish_reason: string
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
+}
+
+async function callMiniMax(options: MiniMaxRequestOptions): Promise<MiniMaxResult> {
   const response = await fetch(MINIMAX_API_URL, {
     method: "POST",
     headers: {
@@ -28,7 +32,18 @@ export async function generateText(
   }
 
   const data: MiniMaxResponse = await response.json()
-  return data.choices[0].message.content
+  return {
+    content: data.choices[0].message.content,
+    finish_reason: data.choices[0].finish_reason,
+    usage: data.usage,
+  }
+}
+
+export async function generateText(
+  options: MiniMaxRequestOptions
+): Promise<string> {
+  const result = await callMiniMax(options)
+  return result.content
 }
 
 export async function streamText(
@@ -125,26 +140,45 @@ export async function generateJSON<T>(
       ...messages[0],
       content:
         messages[0].content +
-        "\n\nRespond ONLY with valid JSON. No markdown, no code fences, no extra text.",
+        "\n\nRespond ONLY with valid JSON. No markdown, no code fences, no extra text. Do NOT include any thinking or reasoning — output the JSON object directly.",
     }
   }
 
-  const raw = await generateText({ ...options, messages })
-  const cleaned = raw
+  const result = await callMiniMax({ ...options, messages })
+
+  const truncated = result.finish_reason === "length"
+  if (truncated) {
+    console.warn(
+      `[MiniMax] Response truncated (finish_reason=length). Tokens: ${JSON.stringify(result.usage)}. Will attempt repair.`
+    )
+  }
+
+  const cleaned = result.content
     .replace(/<think>[\s\S]*?<\/think>/gi, "")
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim()
 
-  const strategies = [
-    () => JSON.parse(cleaned),
-    () => {
-      const match = cleaned.match(/[\[{][\s\S]*[\]}]/)
-      if (!match) throw new Error("no json block")
-      return JSON.parse(match[0])
-    },
-    () => JSON.parse(repairTruncatedJSON(cleaned)),
-  ]
+  // When truncated, try repair first since we know the JSON is incomplete
+  const strategies = truncated
+    ? [
+        () => JSON.parse(repairTruncatedJSON(cleaned)),
+        () => {
+          const match = cleaned.match(/[\[{][\s\S]*[\]}]/)
+          if (!match) throw new Error("no json block")
+          return JSON.parse(repairTruncatedJSON(match[0]))
+        },
+        () => JSON.parse(cleaned),
+      ]
+    : [
+        () => JSON.parse(cleaned),
+        () => {
+          const match = cleaned.match(/[\[{][\s\S]*[\]}]/)
+          if (!match) throw new Error("no json block")
+          return JSON.parse(match[0])
+        },
+        () => JSON.parse(repairTruncatedJSON(cleaned)),
+      ]
 
   let lastError: unknown
   for (const strategy of strategies) {

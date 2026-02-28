@@ -48,7 +48,7 @@ export const StudyModuleSchema = z.object({
 export const StudyCourseSchema = z.object({
   course_title: z.string(),
   overview: z.string(),
-  modules: z.array(StudyModuleSchema).min(3).max(6),
+  modules: z.array(StudyModuleSchema).min(2).max(6),
 })
 
 export type Visual = z.infer<typeof VisualSchema>

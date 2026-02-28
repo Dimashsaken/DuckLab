@@ -14,7 +14,7 @@ async function gatherExaContext(
   ]
 
   const results = await Promise.all(
-    queries.map((q) => searchForResources(q, 5).catch(() => null))
+    queries.map((q) => searchForResources(q, 3).catch(() => null))
   )
 
   const sections: string[] = []
@@ -24,9 +24,8 @@ async function gatherExaContext(
     const label = i === 0 ? "EXPLANATIONS & TUTORIALS" : "MISCONCEPTIONS & PITFALLS"
     const items = res.results
       .map((r) => {
-        const highlights = r.highlights?.join(" | ") ?? ""
-        const text = r.text?.slice(0, 400) ?? ""
-        return `- ${r.title}\n  URL: ${r.url}\n  ${text}\n  Highlights: ${highlights}`
+        const text = r.text?.slice(0, 200) ?? ""
+        return `- ${r.title}\n  ${text}`
       })
       .join("\n\n")
     sections.push(`## ${label}\n${items}`)
@@ -126,7 +125,7 @@ export async function generateStudyCourse(
             },
           ],
           temperature: 0.65,
-          maxTokens: 16384,
+          maxTokens: 32768,
         },
         parseStudyCourse
       )
