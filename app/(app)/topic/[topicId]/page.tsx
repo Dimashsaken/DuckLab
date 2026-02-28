@@ -7,7 +7,6 @@ import { KnowledgeGraph } from "@/components/graph/knowledge-graph"
 import { NodeDetailPanel } from "@/components/graph/node-detail-panel"
 import { GraphSkeleton } from "@/components/shared/loading-skeleton"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { NODE_STATE_COLORS, type GraphNode, type GraphLink } from "@/components/graph/graph-config"
 
 interface Resource {
@@ -20,7 +19,6 @@ interface Resource {
 }
 
 export default function TopicPage() {
-  console.log("[Graph:TopicPage] render")
   const params = useParams<{ topicId: string }>()
   const [topic, setTopic] = useState<{
     id: string
@@ -35,7 +33,6 @@ export default function TopicPage() {
 
   useEffect(() => {
     async function loadGraph() {
-      console.log("[Graph:TopicPage] loadGraph() called, topicId:", params.topicId)
       const supabase = createClient()
 
       const { data: topicData } = await supabase
@@ -55,8 +52,6 @@ export default function TopicPage() {
         .from("concept_edges")
         .select("*")
         .eq("topic_id", params.topicId)
-
-      console.log("[Graph:TopicPage] fetched", concepts?.length, "concepts,", edges?.length, "edges")
 
       if (concepts) {
         setNodes(
@@ -129,7 +124,6 @@ export default function TopicPage() {
     () => nodes.filter((n) => n.mastery === "mastered").length,
     [nodes]
   )
-  const progress = nodes.length > 0 ? (mastered / nodes.length) * 100 : 0
 
   const handleClosePanel = useCallback(() => setSelectedNode(null), [])
 
@@ -145,7 +139,6 @@ export default function TopicPage() {
           </Badge>
         </div>
         <div className="flex items-center gap-3">
-          <Progress value={progress} className="h-2 w-28" />
           <div className="flex gap-2">
             {(
               [
