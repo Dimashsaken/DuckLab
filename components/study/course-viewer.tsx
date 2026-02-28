@@ -33,11 +33,14 @@ interface CourseViewerProps {
   course: StudyCourse
   topicId: string
   nodeId: string
+  conceptTitle: string
 }
 
-export function CourseViewer({ course, topicId, nodeId }: CourseViewerProps) {
+export function CourseViewer({ course, topicId, nodeId, conceptTitle }: CourseViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [confidences, setConfidences] = useState<Record<number, number>>({})
+  const [feedbacks, setFeedbacks] = useState<Record<number, string>>({})
+  const [feedbackLoading, setFeedbackLoading] = useState<Record<number, boolean>>({})
 
   const mod = course.modules[currentIndex]
   const total = course.modules.length
@@ -46,10 +49,39 @@ export function CourseViewer({ course, topicId, nodeId }: CourseViewerProps) {
   const tier = TIER_LABELS[mod.difficulty_tier] ?? TIER_LABELS.definition
 
   const handleConfidence = useCallback(
-    (level: number) => {
+    async (level: number) => {
       setConfidences((prev) => ({ ...prev, [currentIndex]: level }))
+      setFeedbackLoading((prev) => ({ ...prev, [currentIndex]: true }))
+      setFeedbacks((prev) => {
+        const next = { ...prev }
+        delete next[currentIndex]
+        return next
+      })
+
+      try {
+        const currentMod = course.modules[currentIndex]
+        const res = await fetch("/api/agents/confidence-feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            moduleTitle: currentMod.title,
+            moduleContent: currentMod.content,
+            confidenceLevel: level,
+            conceptTitle,
+          }),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          setFeedbacks((prev) => ({ ...prev, [currentIndex]: data.feedback }))
+        }
+      } catch {
+        // Silently fail — feedback is supplementary
+      } finally {
+        setFeedbackLoading((prev) => ({ ...prev, [currentIndex]: false }))
+      }
     },
-    [currentIndex]
+    [currentIndex, course.modules, conceptTitle]
   )
 
   return (
@@ -163,6 +195,8 @@ export function CourseViewer({ course, topicId, nodeId }: CourseViewerProps) {
               <ConfidenceCheck
                 onSelect={handleConfidence}
                 selected={confidences[currentIndex] ?? null}
+                feedback={feedbacks[currentIndex] ?? null}
+                isLoading={feedbackLoading[currentIndex] ?? false}
               />
             </CardContent>
           </Card>

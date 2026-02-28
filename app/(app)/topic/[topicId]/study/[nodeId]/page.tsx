@@ -246,6 +246,7 @@ export default function StudyPage() {
             course={courseState.course}
             topicId={params.topicId}
             nodeId={params.nodeId}
+            conceptTitle={concept.title}
           />
         </div>
       )}
