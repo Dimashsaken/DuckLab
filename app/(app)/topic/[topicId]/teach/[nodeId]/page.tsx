@@ -5,13 +5,17 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useDuckChat, type ChatMessage } from "@/lib/hooks/use-duck-chat"
+import { useRetellVoice } from "@/lib/hooks/use-retell-voice"
 import { DuckChat } from "@/components/teach-back/duck-chat"
+import { VoiceChat } from "@/components/teach-back/voice-chat"
 import { Scorecard } from "@/components/teach-back/scorecard"
 import { RepairLesson } from "@/components/teach-back/repair-lesson"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft, RotateCcw, CheckCircle, Loader2 } from "lucide-react"
+import { ArrowLeft, RotateCcw, CheckCircle, Loader2, Mic, MessageSquare } from "lucide-react"
 import type { RepairLesson as RepairLessonType } from "@/lib/schemas/repair"
+
+type TeachMode = "text" | "voice"
 
 interface ScorecardData {
   accuracy: number
@@ -29,6 +33,7 @@ interface ScorecardData {
 
 export default function TeachPage() {
   const params = useParams<{ topicId: string; nodeId: string }>()
+  const [mode, setMode] = useState<TeachMode>("text")
   const [concept, setConcept] = useState<{
     id: string
     title: string
@@ -103,11 +108,22 @@ export default function TeachPage() {
     [sessionId, concept]
   )
 
-  const { messages, sendMessage, isLoading, isFinished, reset } = useDuckChat({
+  const textChat = useDuckChat({
     conceptTitle: concept?.title ?? "",
     conceptDescription: concept?.description ?? "",
     onFinished: handleFinished,
   })
+
+  const voiceChat = useRetellVoice({
+    conceptTitle: concept?.title ?? "",
+    conceptDescription: concept?.description ?? "",
+    onFinished: handleFinished,
+  })
+
+  const canSwitchMode =
+    textChat.messages.length === 0 &&
+    voiceChat.status === "idle" &&
+    !scorecard
 
   async function handleRepair() {
     if (!scorecard || !concept) return
@@ -137,7 +153,8 @@ export default function TeachPage() {
   }
 
   function handleReteach() {
-    reset()
+    textChat.reset()
+    voiceChat.reset()
     setScorecard(null)
     setRepair(null)
     setSessionId(null)
@@ -186,18 +203,59 @@ export default function TeachPage() {
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back to graph
         </Link>
-        <h1 className="text-2xl font-bold">Teach: {concept.title}</h1>
-        <p className="mt-1 text-muted-foreground">{concept.description}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Teach: {concept.title}</h1>
+            <p className="mt-1 text-muted-foreground">{concept.description}</p>
+          </div>
+          {canSwitchMode && !scorecard && (
+            <div className="flex rounded-lg border border-border p-1">
+              <button
+                onClick={() => setMode("text")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  mode === "text"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                Text
+              </button>
+              <button
+                onClick={() => setMode("voice")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  mode === "voice"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Mic className="h-3.5 w-3.5" />
+                Voice
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {!scorecard ? (
         <div className="rounded-lg border border-border" style={{ height: "500px" }}>
-          <DuckChat
-            messages={messages}
-            isLoading={isLoading}
-            isFinished={isFinished}
-            onSend={sendMessage}
-          />
+          {mode === "text" ? (
+            <DuckChat
+              messages={textChat.messages}
+              isLoading={textChat.isLoading}
+              isFinished={textChat.isFinished}
+              onSend={textChat.sendMessage}
+            />
+          ) : (
+            <VoiceChat
+              status={voiceChat.status}
+              transcript={voiceChat.transcript}
+              agentSpeaking={voiceChat.agentSpeaking}
+              error={voiceChat.error}
+              onStart={voiceChat.startCall}
+              onStop={voiceChat.stopCall}
+            />
+          )}
           {scoring && (
             <div className="flex items-center justify-center gap-2 border-t border-border p-4">
               <Loader2 className="h-4 w-4 animate-spin" />
