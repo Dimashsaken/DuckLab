@@ -18,7 +18,7 @@ async function callMiniMax(options: MiniMaxRequestOptions): Promise<MiniMaxResul
       Authorization: `Bearer ${process.env.MINIMAX_API_KEY}`,
     },
     body: JSON.stringify({
-      model: MINIMAX_MODEL,
+      model: options.model ?? MINIMAX_MODEL,
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 4096,

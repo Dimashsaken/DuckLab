@@ -34,12 +34,13 @@ export async function POST(req: NextRequest) {
     )
 
     const feedback = await generateText({
+      model: "MiniMax-Text-01",
       messages: [
         { role: "system", content: system },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      maxTokens: 1024,
+      maxTokens: 64,
     })
 
     const cleaned = feedback
