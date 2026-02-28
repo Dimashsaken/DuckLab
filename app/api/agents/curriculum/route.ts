@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { generateCurriculum } from "@/lib/agents/curriculum-architect"
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/auth"
 import { createTopic, updateTopicStatus } from "@/lib/supabase/queries/topics"
 import { insertConcepts, insertEdges } from "@/lib/supabase/queries/concepts"
 
@@ -8,10 +8,7 @@ export const maxDuration = 60
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

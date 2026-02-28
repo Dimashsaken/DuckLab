@@ -1,14 +1,11 @@
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/auth"
 import { generateDuckResponse } from "@/lib/agents/duck-persona"
 
 export const maxDuration = 30
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
 
     if (!user) {
       return new Response("Unauthorized", { status: 401 })
