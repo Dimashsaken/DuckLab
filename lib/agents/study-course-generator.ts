@@ -4,6 +4,8 @@ import { STUDY_COURSE_SYSTEM_PROMPT } from "@/lib/prompts/study-course"
 import {
   StudyCourseSchema,
   StudyModuleSchema,
+  DifficultyTierSchema,
+  normalizeDifficultyTier,
   type StudyCourse,
   type StudyModule,
 } from "@/lib/schemas/study-course"
@@ -100,10 +102,7 @@ async function gatherExaContext(
 const OutlineModuleSchema = z.object({
   id: z.string(),
   title: z.string(),
-  difficulty_tier: z.enum([
-    "intuition", "definition", "example", "application",
-    "edge_case", "connection", "summary",
-  ]),
+  difficulty_tier: DifficultyTierSchema,
   focus: z.string(),
 })
 
@@ -202,6 +201,7 @@ function coerceToString(val: unknown): string | undefined {
 function normalizeModule(mod: Record<string, unknown>): Record<string, unknown> {
   return {
     ...mod,
+    difficulty_tier: normalizeDifficultyTier(mod.difficulty_tier),
     mini_challenges: Array.isArray(mod.mini_challenges) ? mod.mini_challenges : [],
     key_takeaways: Array.isArray(mod.key_takeaways) ? mod.key_takeaways : [],
     sources: Array.isArray(mod.sources) ? mod.sources : [],
@@ -246,7 +246,9 @@ const MODULE_BATCH_SYSTEM_PROMPT = `You are an expert educational content writer
 
 # MODULE FIELDS
 Each module must include:
-- id, title, difficulty_tier (from the outline)
+- id: use the EXACT id from the outline (kebab-case string)
+- title: use the EXACT title from the outline
+- difficulty_tier: use the EXACT difficulty_tier from the outline. MUST be one of these exact strings: "intuition", "definition", "example", "application", "edge_case", "connection", "summary". Do NOT use values like "beginner", "intermediate", "advanced", or numbers.
 - content: 150-300 words, no markdown headers, use short paragraphs
 - key_takeaways: 1-3 concise bullet points (REQUIRED)
 
@@ -268,6 +270,20 @@ Optional fields (spread across modules, max 2-3 per module):
 
 Output ONLY: { "modules": [...] }. No thinking, no markdown fences.`
 
+function applyOutlineTiers(
+  modules: StudyModule[],
+  outlineModules: CourseOutline["modules"]
+): StudyModule[] {
+  return modules.map((mod, i) => {
+    const outlineTier = outlineModules.find((o) => o.id === mod.id)?.difficulty_tier
+      ?? outlineModules[i]?.difficulty_tier
+    if (outlineTier) {
+      return { ...mod, difficulty_tier: outlineTier }
+    }
+    return mod
+  })
+}
+
 async function generateModuleBatch(
   outlineModules: CourseOutline["modules"],
   conceptTitle: string,
@@ -277,7 +293,7 @@ async function generateModuleBatch(
   graphContext: string[]
 ): Promise<StudyModule[]> {
   const outlineDesc = outlineModules
-    .map((m, i) => `${i + 1}. **${m.title}** (${m.difficulty_tier}): ${m.focus}`)
+    .map((m) => `- id: "${m.id}", title: "${m.title}", difficulty_tier: "${m.difficulty_tier}", focus: ${m.focus}`)
     .join("\n")
 
   const MAX_RETRIES = 2
@@ -285,7 +301,7 @@ async function generateModuleBatch(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await generateJSON(
+      const modules = await generateJSON(
         {
           messages: [
             { role: "system", content: MODULE_BATCH_SYSTEM_PROMPT },
@@ -294,7 +310,7 @@ async function generateModuleBatch(
               content: [
                 `# Concept: ${conceptTitle} (Topic: ${topicTitle})`,
                 graphContext.length > 0 ? `\n# Learning Graph Context\n${graphContext.join("\n")}` : "",
-                `\n# Module Outlines to Generate\n${outlineDesc}`,
+                `\n# Module Outlines to Generate (use these EXACT id, title, and difficulty_tier values)\n${outlineDesc}`,
                 `\n# Reference Material\n${exaContext || "(No results)"}`,
                 `\n# Available Sources\n${sourcesJson}`,
                 `\nGenerate the full modules now. Output: { "modules": [...] }`,
@@ -306,6 +322,7 @@ async function generateModuleBatch(
         },
         parseModuleBatch
       )
+      return applyOutlineTiers(modules, outlineModules)
     } catch (err) {
       lastError = err
       console.warn(`Module batch attempt ${attempt + 1} failed:`, err instanceof Error ? err.message : err)
