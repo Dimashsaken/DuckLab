@@ -10,7 +10,6 @@ import {
   getSuggestedNext,
   type GraphNode,
   type GraphLink,
-  type NodeState,
 } from "./graph-config"
 import * as d3Force from "d3-force"
 import { Sparkles, ArrowRight } from "lucide-react"
@@ -25,11 +24,20 @@ interface KnowledgeGraphProps {
   onNodeClick?: (node: GraphNode) => void
 }
 
+const renderCountRef = { current: 0 }
+const paintCountRef = { current: 0 }
+const linkPaintCountRef = { current: 0 }
+const animTickRef = { current: 0 }
+const lastFpsLogRef = { current: 0 }
+
 export function KnowledgeGraph({
   nodes,
   links,
   onNodeClick,
 }: KnowledgeGraphProps) {
+  renderCountRef.current++
+  console.log(`[Graph:KnowledgeGraph] render #${renderCountRef.current}, nodes=${nodes.length}, links=${links.length}`)
+
   const graphRef = useRef<unknown>(null)
   const hoveredNodeRef = useRef<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -41,13 +49,19 @@ export function KnowledgeGraph({
   const [suggestedNode, setSuggestedNode] = useState<GraphNode | null>(null)
 
   const graphData = useMemo(() => {
+    console.log("[Graph:useMemo] recomputing graphData (nodes/links changed)")
+    console.time("[Graph:useMemo] computeInitialPositions")
     const positioned = computeInitialPositions(
       nodes.map((n) => ({ ...n })),
       links,
       dimensionsRef.current.width,
       dimensionsRef.current.height
     )
+    console.timeEnd("[Graph:useMemo] computeInitialPositions")
     const suggested = getSuggestedNext(positioned)
+    console.log("[Graph:useMemo] suggested next:", suggested?.name, "state:", suggested?._state)
+    const states = positioned.reduce((acc, n) => { acc[n._state ?? "unknown"] = (acc[n._state ?? "unknown"] ?? 0) + 1; return acc }, {} as Record<string, number>)
+    console.log("[Graph:useMemo] node states:", states)
     setSuggestedNode(suggested)
     return { nodes: positioned, links: [...links] }
   }, [nodes, links])
@@ -69,7 +83,11 @@ export function KnowledgeGraph({
       d3Force: (name: string, force?: unknown) => unknown
     } | null
 
-    if (!fg) return
+    if (!fg) {
+      console.log("[Graph:d3Force] graphRef not ready, skipping force setup")
+      return
+    }
+    console.log("[Graph:d3Force] configuring forces")
 
     const charge = d3Force
       .forceManyBody()
@@ -101,18 +119,38 @@ export function KnowledgeGraph({
 
   // Animation loop for pulsing effects on start_here / unlocked nodes
   useEffect(() => {
+    console.log("[Graph:animLoop] starting animation loop")
     function tick() {
       timeRef.current = Date.now()
+      animTickRef.current++
+      const now = Date.now()
+      if (now - lastFpsLogRef.current >= 3000) {
+        const elapsed = (now - lastFpsLogRef.current) / 1000
+        const fps = Math.round(animTickRef.current / elapsed)
+        console.log(`[Graph:animLoop] ~${fps} fps, paintNode called ${paintCountRef.current} times, paintLink called ${linkPaintCountRef.current} times in last ${elapsed.toFixed(1)}s`)
+        animTickRef.current = 0
+        paintCountRef.current = 0
+        linkPaintCountRef.current = 0
+        lastFpsLogRef.current = now
+      }
       const fg = graphRef.current as unknown as { refresh: () => void } | null
       fg?.refresh()
       animFrameRef.current = requestAnimationFrame(tick)
     }
+    lastFpsLogRef.current = Date.now()
     animFrameRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(animFrameRef.current)
+    return () => {
+      console.log("[Graph:animLoop] stopping animation loop")
+      cancelAnimationFrame(animFrameRef.current)
+    }
   }, [])
 
   const handleEngineStop = useCallback(() => {
-    if (hasZoomedRef.current) return
+    console.log("[Graph:engine] simulation stopped")
+    if (hasZoomedRef.current) {
+      console.log("[Graph:engine] already zoomed, skipping zoomToFit")
+      return
+    }
     hasZoomedRef.current = true
 
     const fg = graphRef.current as unknown as {
@@ -123,6 +161,7 @@ export function KnowledgeGraph({
 
   const paintNode = useCallback(
     (node: unknown, ctx: CanvasRenderingContext2D) => {
+      paintCountRef.current++
       const n = node as GraphNode
       const radius = getNodeRadius(n.difficulty)
       const color = getNodeColor(n)
@@ -279,6 +318,7 @@ export function KnowledgeGraph({
 
   const paintLink = useCallback(
     (link: unknown, ctx: CanvasRenderingContext2D) => {
+      linkPaintCountRef.current++
       const l = link as { source: GraphNode; target: GraphNode }
       const src = l.source
       const tgt = l.target
@@ -372,6 +412,7 @@ export function KnowledgeGraph({
 
   const handleNodeHover = useCallback((node: unknown) => {
     const n = node as GraphNode | null
+    if (n) console.log("[Graph:hover]", n.name, "state:", n._state)
     hoveredNodeRef.current = n?.id ?? null
     if (containerRef.current) {
       containerRef.current.style.cursor = n ? "pointer" : "default"
@@ -380,7 +421,9 @@ export function KnowledgeGraph({
 
   const handleNodeClick = useCallback(
     (node: unknown) => {
-      onNodeClick?.(node as GraphNode)
+      const n = node as GraphNode
+      console.log("[Graph:click]", n.name, "state:", n._state, "mastery:", n.mastery)
+      onNodeClick?.(n)
     },
     [onNodeClick]
   )

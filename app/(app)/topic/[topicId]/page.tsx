@@ -20,6 +20,7 @@ interface Resource {
 }
 
 export default function TopicPage() {
+  console.log("[Graph:TopicPage] render")
   const params = useParams<{ topicId: string }>()
   const [topic, setTopic] = useState<{
     id: string
@@ -34,6 +35,7 @@ export default function TopicPage() {
 
   useEffect(() => {
     async function loadGraph() {
+      console.log("[Graph:TopicPage] loadGraph() called, topicId:", params.topicId)
       const supabase = createClient()
 
       const { data: topicData } = await supabase
@@ -53,6 +55,8 @@ export default function TopicPage() {
         .from("concept_edges")
         .select("*")
         .eq("topic_id", params.topicId)
+
+      console.log("[Graph:TopicPage] fetched", concepts?.length, "concepts,", edges?.length, "edges")
 
       if (concepts) {
         setNodes(
