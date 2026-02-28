@@ -1,15 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
+import { requireUser } from "@/lib/supabase/auth"
 
 export async function createTeachSession(
   conceptId: string,
   attemptNumber: number = 1
 ) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) throw new Error("Not authenticated")
+  const user = await requireUser()
 
   const { data, error } = await supabase
     .from("teach_sessions")
