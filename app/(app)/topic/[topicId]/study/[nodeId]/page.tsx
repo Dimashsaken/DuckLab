@@ -23,6 +23,7 @@ import {
   BookOpen,
   AlertCircle,
   RotateCcw,
+  RefreshCw,
 } from "lucide-react"
 import type { StudyCourse } from "@/lib/schemas/study-course"
 
@@ -58,23 +59,30 @@ interface Resource {
 
 type CourseState =
   | { status: "idle" }
+  | { status: "loading" }
   | { status: "generating" }
   | { status: "ready"; course: StudyCourse }
   | { status: "error"; message: string }
+
+interface GraphNeighbors {
+  prerequisites: string[]
+  nextConcepts: string[]
+}
 
 export default function StudyPage() {
   const params = useParams<{ topicId: string; nodeId: string }>()
   const [concept, setConcept] = useState<Concept | null>(null)
   const [topic, setTopic] = useState<Topic | null>(null)
   const [resources, setResources] = useState<Resource[]>([])
+  const [neighbors, setNeighbors] = useState<GraphNeighbors>({ prerequisites: [], nextConcepts: [] })
   const [loading, setLoading] = useState(true)
-  const [courseState, setCourseState] = useState<CourseState>({ status: "idle" })
+  const [courseState, setCourseState] = useState<CourseState>({ status: "loading" })
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
 
-      const [conceptRes, topicRes, resourceRes] = await Promise.all([
+      const [conceptRes, topicRes, resourceRes, allConceptsRes, edgesRes] = await Promise.all([
         supabase
           .from("concepts")
           .select("*")
@@ -90,12 +98,53 @@ export default function StudyPage() {
           .select("*")
           .eq("concept_id", params.nodeId)
           .order("quality_score", { ascending: false }),
+        supabase
+          .from("concepts")
+          .select("id, title")
+          .eq("topic_id", params.topicId),
+        supabase
+          .from("concept_edges")
+          .select("source_id, target_id")
+          .eq("topic_id", params.topicId),
       ])
 
       if (conceptRes.data) setConcept(conceptRes.data)
       if (topicRes.data) setTopic(topicRes.data)
       setResources(resourceRes.data ?? [])
+
+      if (allConceptsRes.data && edgesRes.data) {
+        const titleMap = new Map(allConceptsRes.data.map((c) => [c.id, c.title]))
+        const prereqIds = edgesRes.data
+          .filter((e) => e.target_id === params.nodeId)
+          .map((e) => e.source_id)
+        const nextIds = edgesRes.data
+          .filter((e) => e.source_id === params.nodeId)
+          .map((e) => e.target_id)
+        setNeighbors({
+          prerequisites: prereqIds.map((id) => titleMap.get(id)).filter(Boolean) as string[],
+          nextConcepts: nextIds.map((id) => titleMap.get(id)).filter(Boolean) as string[],
+        })
+      }
+
       setLoading(false)
+
+      // Load saved course
+      try {
+        const savedRes = await fetch(
+          `/api/agents/study-course?conceptId=${params.nodeId}`
+        )
+        if (savedRes.ok) {
+          const { course } = await savedRes.json()
+          if (course) {
+            setCourseState({ status: "ready", course })
+            return
+          }
+        }
+      } catch {
+        // Failed to load saved — fall through to idle
+      }
+
+      setCourseState({ status: "idle" })
     }
 
     load()
@@ -110,9 +159,12 @@ export default function StudyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          conceptId: concept.id,
           conceptTitle: concept.title,
           conceptDescription: concept.description,
           topicTitle: topic.title,
+          prerequisites: neighbors.prerequisites,
+          nextConcepts: neighbors.nextConcepts,
         }),
       })
 
@@ -129,7 +181,7 @@ export default function StudyPage() {
         message: err instanceof Error ? err.message : "Something went wrong",
       })
     }
-  }, [concept, topic])
+  }, [concept, topic, neighbors])
 
   if (loading) {
     return (
@@ -161,6 +213,16 @@ export default function StudyPage() {
         <h1 className="text-2xl font-bold">{concept.title}</h1>
         <p className="mt-1 text-muted-foreground">{concept.description}</p>
       </div>
+
+      {/* Loading saved course */}
+      {courseState.status === "loading" && (
+        <Card>
+          <CardContent className="flex items-center justify-center gap-3 py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Loading saved course...</span>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Interactive Course Section */}
       {courseState.status === "idle" && (
@@ -201,13 +263,14 @@ export default function StudyPage() {
             <GeneratingProgress />
             <div className="space-y-2">
               {[
-                "Searching for explanations & tutorials...",
-                "Finding common misconceptions...",
-                "Building bite-sized modules...",
-                "Adding visuals & diagrams...",
-                "Creating challenges...",
+                "Searching for explanations, principles & applications...",
+                "Gathering misconceptions & practical examples...",
+                "Designing course outline with progressive scaffolding...",
+                "Writing in-depth module content with citations...",
+                "Adding code examples, visuals & challenges...",
+                "Assembling final course with key takeaways...",
               ].map((step, i) => (
-                <GeneratingStep key={i} text={step} delay={i * 2} />
+                <GeneratingStep key={i} text={step} delay={i * 3} />
               ))}
             </div>
           </CardContent>
@@ -234,13 +297,24 @@ export default function StudyPage() {
 
       {courseState.status === "ready" && (
         <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">
-              {courseState.course.course_title}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {courseState.course.overview}
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">
+                {courseState.course.course_title}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {courseState.course.overview}
+              </p>
+            </div>
+            <Button
+              onClick={generateCourse}
+              variant="ghost"
+              size="sm"
+              className="shrink-0 text-muted-foreground/50 hover:text-foreground/70"
+              title="Regenerate course"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
           </div>
           <CourseViewer
             course={courseState.course}
@@ -287,7 +361,7 @@ export default function StudyPage() {
       )}
 
       {/* Fallback Teach the Duck button (when course not generated) */}
-      {courseState.status !== "ready" && (
+      {courseState.status !== "ready" && courseState.status !== "loading" && (
         <div className="pt-4">
           <Button asChild size="lg" className="w-full">
             <Link href={`/topic/${params.topicId}/teach/${params.nodeId}`}>
@@ -302,11 +376,12 @@ export default function StudyPage() {
 }
 
 const PROGRESS_PHASES = [
-  { label: "Searching the web…", target: 20, duration: 6000 },
-  { label: "Analyzing sources…", target: 40, duration: 8000 },
-  { label: "Structuring modules…", target: 60, duration: 10000 },
-  { label: "Generating content…", target: 80, duration: 15000 },
-  { label: "Finalizing course…", target: 92, duration: 20000 },
+  { label: "Searching 5 web sources…", target: 15, duration: 8000 },
+  { label: "Analyzing reference material…", target: 30, duration: 8000 },
+  { label: "Designing course outline…", target: 45, duration: 10000 },
+  { label: "Generating in-depth modules…", target: 70, duration: 20000 },
+  { label: "Adding examples & citations…", target: 85, duration: 15000 },
+  { label: "Finalizing course…", target: 94, duration: 15000 },
 ]
 
 function GeneratingProgress() {

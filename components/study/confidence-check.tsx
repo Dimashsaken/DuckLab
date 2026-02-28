@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Frown, Meh, Smile, Loader2, Sparkles, Lightbulb, PartyPopper } from "lucide-react"
+import { Frown, Meh, Smile, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ConfidenceCheckProps {
@@ -13,29 +13,46 @@ interface ConfidenceCheckProps {
 }
 
 const levels = [
-  { value: 1, label: "Confused", icon: Frown, color: "text-red-400 border-red-500/30 hover:bg-red-500/10", activeColor: "bg-red-500/20 border-red-500/50 text-red-300" },
-  { value: 2, label: "Getting it", icon: Meh, color: "text-amber-400 border-amber-500/30 hover:bg-amber-500/10", activeColor: "bg-amber-500/20 border-amber-500/50 text-amber-300" },
-  { value: 3, label: "Got it", icon: Smile, color: "text-green-400 border-green-500/30 hover:bg-green-500/10", activeColor: "bg-green-500/20 border-green-500/50 text-green-300" },
+  {
+    value: 1,
+    label: "Confused",
+    icon: Frown,
+    idle: "border-rose-500/15 hover:border-rose-500/30 hover:bg-rose-500/[0.06]",
+    active: "border-rose-500/30 bg-rose-500/[0.1] text-rose-300",
+    feedbackBg: "bg-rose-500/[0.06] border-rose-500/[0.12]",
+  },
+  {
+    value: 2,
+    label: "Getting it",
+    icon: Meh,
+    idle: "border-amber-500/15 hover:border-amber-500/30 hover:bg-amber-500/[0.06]",
+    active: "border-amber-500/30 bg-amber-500/[0.1] text-amber-300",
+    feedbackBg: "bg-amber-500/[0.06] border-amber-500/[0.12]",
+  },
+  {
+    value: 3,
+    label: "Got it!",
+    icon: Smile,
+    idle: "border-emerald-500/15 hover:border-emerald-500/30 hover:bg-emerald-500/[0.06]",
+    active: "border-emerald-500/30 bg-emerald-500/[0.1] text-emerald-300",
+    feedbackBg: "bg-emerald-500/[0.06] border-emerald-500/[0.12]",
+  },
 ]
 
-const FEEDBACK_STYLES: Record<number, { border: string; bg: string; headerColor: string; label: string; icon: typeof Sparkles }> = {
-  1: { border: "border-red-500/30", bg: "bg-red-500/5", headerColor: "text-red-400", label: "Let me help clarify", icon: Lightbulb },
-  2: { border: "border-amber-500/30", bg: "bg-amber-500/5", headerColor: "text-amber-400", label: "Quick tip", icon: Sparkles },
-  3: { border: "border-green-500/30", bg: "bg-green-500/5", headerColor: "text-green-400", label: "Nice work!", icon: PartyPopper },
-}
-
 export function ConfidenceCheck({ onSelect, selected, feedback, isLoading }: ConfidenceCheckProps) {
+  const activeLevel = levels.find((l) => l.value === selected)
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-2 rounded-lg border border-border/50 bg-muted/20 p-4"
+        className="space-y-4"
       >
-        <p className="text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          How confident do you feel about this?
+        <p className="text-center text-sm font-medium text-foreground/60">
+          How confident do you feel about this topic?
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {levels.map((level) => {
             const Icon = level.icon
             const isActive = selected === level.value
@@ -43,15 +60,15 @@ export function ConfidenceCheck({ onSelect, selected, feedback, isLoading }: Con
               <Button
                 key={level.value}
                 variant="outline"
-                size="sm"
                 onClick={() => onSelect(level.value)}
                 disabled={isLoading}
                 className={cn(
-                  "flex-1 gap-2",
-                  isActive ? level.activeColor : level.color
+                  "flex-1 h-14 gap-2.5 rounded-xl border text-sm font-medium transition-all duration-200",
+                  "text-muted-foreground/60",
+                  isActive ? level.active : level.idle
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-5 w-5" />
                 {level.label}
               </Button>
             )
@@ -66,38 +83,28 @@ export function ConfidenceCheck({ onSelect, selected, feedback, isLoading }: Con
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border/50 bg-muted/20 p-4"
+            className="flex items-center justify-center gap-2.5 py-5"
           >
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">Thinking...</span>
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
+            <span className="text-sm text-muted-foreground/40">Generating feedback...</span>
           </motion.div>
         )}
 
-        {!isLoading && feedback && selected && (
+        {!isLoading && feedback && activeLevel && (
           <motion.div
             key="feedback"
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.3 }}
+            className={cn(
+              "rounded-xl border p-5",
+              activeLevel.feedbackBg
+            )}
           >
-            {(() => {
-              const style = FEEDBACK_STYLES[selected] ?? FEEDBACK_STYLES[2]
-              const FeedbackIcon = style.icon
-              return (
-                <div className={cn("rounded-lg border p-4", style.border, style.bg)}>
-                  <div className="mb-2 flex items-center gap-1.5">
-                    <FeedbackIcon className={cn("h-3.5 w-3.5", style.headerColor)} />
-                    <span className={cn("text-xs font-medium uppercase tracking-wider", style.headerColor)}>
-                      {style.label}
-                    </span>
-                  </div>
-                  <p className="text-sm leading-relaxed text-foreground/90">
-                    {feedback}
-                  </p>
-                </div>
-              )
-            })()}
+            <p className="text-[14.5px] leading-[1.8] text-foreground/75">
+              {feedback}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
